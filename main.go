@@ -14,6 +14,8 @@ import (
 	"boot.dev/linko/internal/store"
 )
 
+type closeFunc func() error
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
@@ -28,12 +30,16 @@ func main() {
 }
 
 func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string) int {
-	logger, closeLogger, err := initializeLogger()
+	logger, closeLogger, err := initializeLogger(os.Getenv("LINKO_LOG_FILE"))
 	if err != nil {
 		logger.Printf("failed to initialize logger: %v", err)
 		return 1
 	}
-	defer closeLogger()
+	defer func() {
+		if err := closeLogger(); err != nil {
+			os.Stderr.WriteString("failed to clean up logger: " + err.Error() + "\n")
+		}
+	}()
 
 	st, err := store.New(dataDir, logger)
 	if err != nil {
@@ -63,8 +69,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	return 0
 }
 
-func initializeLogger() (*log.Logger, func() error, error) {
-	logFile := os.Getenv("LINKO_LOG_FILE")
+func initializeLogger(logFile string) (*log.Logger, closeFunc, error) {
 	if logFile == "" {
 		return log.New(os.Stderr, "", log.LstdFlags), func() error { return nil }, nil
 	}
@@ -75,5 +80,13 @@ func initializeLogger() (*log.Logger, func() error, error) {
 	}
 
 	bufferedFile := bufio.NewWriterSize(f, 8192)
-	return log.New(io.MultiWriter(os.Stderr, bufferedFile), "", log.LstdFlags), f.Close, nil
+	closeLogger := func() error {
+		if err := bufferedFile.Flush(); err != nil {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	}
+
+	return log.New(io.MultiWriter(os.Stderr, bufferedFile), "", log.LstdFlags), closeLogger, nil
 }
