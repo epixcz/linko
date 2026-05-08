@@ -49,15 +49,11 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
-			clientIP := r.RemoteAddr
-			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-				clientIP = host
-			}
 			logger.Info(
 				"Served request",
 				"method", r.Method,
 				"path", r.URL.Path,
-				"client_ip", clientIP,
+				"client_ip", r.RemoteAddr,
 			)
 		})
 	}
