@@ -121,10 +121,7 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 					Value: slog.StringValue(fmt.Sprintf("%+v", stackErr.StackTrace())),
 				})
 			}
-			return slog.GroupAttrs("error", slog.Attr{
-				Key:   "message",
-				Value: slog.StringValue(err.Error()),
-			})
+			return slog.String(a.Key, err.Error())
 		}
 	}
 	return a
