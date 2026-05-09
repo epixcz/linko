@@ -21,6 +21,12 @@ type server struct {
 	logger     *slog.Logger
 }
 
+type LogContext struct {
+	Username string
+}
+
+const LogContextKey contextKey = "log_context"
+
 func newServer(store store.Store, port int, cancel context.CancelFunc, logger *slog.Logger) *server {
 	mux := http.NewServeMux()
 
@@ -51,6 +57,8 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
+			logCtx := &LogContext{}
+			r = r.WithContext(context.WithValue(r.Context(), LogContextKey, logCtx))
 			body := &spyReadCloser{ReadCloser: r.Body}
 			r.Body = body
 			response := &spyResponseWriter{
@@ -58,8 +66,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				statusCode:     http.StatusOK,
 			}
 			next.ServeHTTP(response, r)
-			logger.Info(
-				"Served request",
+			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"client_ip", r.RemoteAddr,
@@ -67,6 +74,13 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				"request_body_bytes", body.bytesRead,
 				"response_status", response.statusCode,
 				"response_body_bytes", response.bytesWritten,
+			}
+			if logCtx.Username != "" {
+				attrs = append(attrs, "user", logCtx.Username)
+			}
+			logger.Info(
+				"Served request",
+				attrs...,
 			)
 		})
 	}
