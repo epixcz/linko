@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
 	pkgerr "github.com/pkg/errors"
 )
@@ -112,16 +113,22 @@ func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == "error" {
 		if err, ok := a.Value.Any().(error); ok {
+			errorAttrs := []slog.Attr{{
+				Key:   "message",
+				Value: slog.StringValue(err.Error()),
+			}}
 			if stackErr, ok := errors.AsType[stackTracer](err); ok {
-				return slog.GroupAttrs("error", slog.Attr{
+				errorAttrs[0] = slog.Attr{
 					Key:   "message",
 					Value: slog.StringValue(stackErr.Error()),
-				}, slog.Attr{
+				}
+				errorAttrs = append(errorAttrs, slog.Attr{
 					Key:   "stack_trace",
 					Value: slog.StringValue(fmt.Sprintf("%+v", stackErr.StackTrace())),
 				})
 			}
-			return slog.String(a.Key, err.Error())
+			errorAttrs = append(errorAttrs, linkoerr.Attrs(err)...)
+			return slog.GroupAttrs("error", errorAttrs...)
 		}
 	}
 	return a
