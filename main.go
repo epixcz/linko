@@ -70,9 +70,11 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 }
 
 func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
-	stderrHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	})
+	stderrOptions := &slog.HandlerOptions{
+		Level:       slog.LevelDebug,
+		ReplaceAttr: replaceAttr,
+	}
+	stderrHandler := slog.NewTextHandler(os.Stderr, stderrOptions)
 	if logFile == "" {
 		return slog.New(stderrHandler), func() error { return nil }, nil
 	}
@@ -91,9 +93,20 @@ func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
 		return f.Close()
 	}
 
-	fileHandler := slog.NewJSONHandler(bufferedFile, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
+	fileOptions := &slog.HandlerOptions{
+		Level:       slog.LevelInfo,
+		ReplaceAttr: replaceAttr,
+	}
+	fileHandler := slog.NewJSONHandler(bufferedFile, fileOptions)
 
 	return slog.New(slog.NewMultiHandler(stderrHandler, fileHandler)), closeLogger, nil
+}
+
+func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == "error" {
+		if err, ok := a.Value.Any().(error); ok {
+			return slog.String(a.Key, fmt.Sprintf("%+v", err))
+		}
+	}
+	return a
 }
