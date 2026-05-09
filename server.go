@@ -23,6 +23,7 @@ type server struct {
 
 type LogContext struct {
 	Username string
+	Error    error
 }
 
 const LogContextKey contextKey = "log_context"
@@ -78,11 +79,44 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			if logCtx.Username != "" {
 				attrs = append(attrs, "user", logCtx.Username)
 			}
+			if logCtx.Error != nil {
+				attrs = append(attrs, "error", logCtx.Error)
+			}
 			logger.Info(
 				"Served request",
 				attrs...,
 			)
 		})
+	}
+}
+
+func httpError(ctx context.Context, w http.ResponseWriter, statusCode int, err error) {
+	if logCtx, ok := ctx.Value(LogContextKey).(*LogContext); ok {
+		logCtx.Error = err
+	}
+	http.Error(w, err.Error(), statusCode)
+}
+
+type responseError struct {
+	message string
+	cause   error
+}
+
+func (e responseError) Error() string {
+	return e.message
+}
+
+func (e responseError) Unwrap() error {
+	return e.cause
+}
+
+func newResponseError(message string, cause error) error {
+	if cause == nil {
+		return errors.New(message)
+	}
+	return responseError{
+		message: message,
+		cause:   cause,
 	}
 }
 

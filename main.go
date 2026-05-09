@@ -148,10 +148,6 @@ func errorAttrs(err error) []slog.Attr {
 		Value: slog.StringValue(err.Error()),
 	}}
 	if stackErr, ok := errors.AsType[stackTracer](err); ok {
-		attrs[0] = slog.Attr{
-			Key:   "message",
-			Value: slog.StringValue(stackErr.Error()),
-		}
 		attrs = append(attrs, slog.Attr{
 			Key:   "stack_trace",
 			Value: slog.StringValue(fmt.Sprintf("%+v", stackErr.StackTrace())),
