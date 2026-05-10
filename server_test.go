@@ -40,7 +40,7 @@ func Test_requestLoggerIncludesAuthenticatedUser(t *testing.T) {
 	req.Header.Set("X-Request-ID", "test-request-id")
 	loggedHandler.ServeHTTP(rr, req)
 
-	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.x request_id=test-request-id duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0 user=frodo` + "\n"
+	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.x request_id=test-request-id duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0 user=[REDACTED]` + "\n"
 	if logBuffer.String() != expectedLogString {
 		t.Errorf("expected log string %q, got %q", expectedLogString, logBuffer.String())
 	}

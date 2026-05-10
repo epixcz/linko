@@ -6,8 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
+	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,6 +35,11 @@ type multiError interface {
 	error
 	Unwrap() []error
 }
+
+var (
+	sensitiveLogKeys = []string{"password", "key", "apikey", "secret", "pin", "creditcardno", "user"}
+	urlPattern       = regexp.MustCompile(`https?://[^\s"']+`)
+)
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -127,6 +136,7 @@ func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
 }
 
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	a = redactAttr(a)
 	if a.Key == "error" {
 		if err, ok := a.Value.Any().(error); ok {
 			if multiErr, ok := errors.AsType[multiError](err); ok {
@@ -142,10 +152,54 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
+func redactAttr(a slog.Attr) slog.Attr {
+	if slices.Contains(sensitiveLogKeys, strings.ToLower(a.Key)) {
+		a.Value = slog.StringValue("[REDACTED]")
+		return a
+	}
+	if a.Value.Kind() == slog.KindString {
+		a.Value = slog.StringValue(redactURLPasswords(a.Value.String()))
+	}
+	return a
+}
+
+func redactAttrs(attrs []slog.Attr) []slog.Attr {
+	redacted := make([]slog.Attr, 0, len(attrs))
+	for _, attr := range attrs {
+		redacted = append(redacted, redactAttr(attr))
+	}
+	return redacted
+}
+
+func redactURLPasswords(value string) string {
+	if redacted := redactURLPassword(value); redacted != value {
+		return redacted
+	}
+	return urlPattern.ReplaceAllStringFunc(value, redactURLPassword)
+}
+
+func redactURLPassword(value string) string {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User == nil {
+		return value
+	}
+	if _, ok := parsed.User.Password(); !ok {
+		return value
+	}
+	withoutUser := *parsed
+	withoutUser.User = nil
+	prefix := withoutUser.Scheme + "://"
+	withoutUserString := withoutUser.String()
+	if !strings.HasPrefix(withoutUserString, prefix) {
+		return value
+	}
+	return prefix + parsed.User.Username() + ":[REDACTED]@" + strings.TrimPrefix(withoutUserString, prefix)
+}
+
 func errorAttrs(err error) []slog.Attr {
 	attrs := []slog.Attr{{
 		Key:   "message",
-		Value: slog.StringValue(err.Error()),
+		Value: slog.StringValue(redactURLPasswords(err.Error())),
 	}}
 	if stackErr, ok := errors.AsType[stackTracer](err); ok {
 		attrs = append(attrs, slog.Attr{
@@ -153,6 +207,6 @@ func errorAttrs(err error) []slog.Attr {
 			Value: slog.StringValue(fmt.Sprintf("%+v", stackErr.StackTrace())),
 		})
 	}
-	attrs = append(attrs, linkoerr.Attrs(err)...)
+	attrs = append(attrs, redactAttrs(linkoerr.Attrs(err))...)
 	return attrs
 }
