@@ -107,7 +107,12 @@ func httpError(ctx context.Context, w http.ResponseWriter, statusCode int, err e
 	if logCtx, ok := ctx.Value(LogContextKey).(*LogContext); ok {
 		logCtx.Error = err
 	}
-	http.Error(w, err.Error(), statusCode)
+	message := err.Error()
+	switch statusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusInternalServerError:
+		message = http.StatusText(statusCode)
+	}
+	http.Error(w, message, statusCode)
 }
 
 type responseError struct {
