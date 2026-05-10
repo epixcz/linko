@@ -82,7 +82,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
-				"client_ip", r.RemoteAddr,
+				"client_ip", redactIP(r.RemoteAddr),
 				"request_id", response.Header().Get("X-Request-ID"),
 				"duration", time.Since(start),
 				"request_body_bytes", body.bytesRead,
@@ -101,6 +101,22 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			)
 		})
 	}
+}
+
+func redactIP(address string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		host = address
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return address
+	}
+	ipv4 := ip.To4()
+	if ipv4 == nil {
+		return address
+	}
+	return fmt.Sprintf("%d.%d.%d.x", ipv4[0], ipv4[1], ipv4[2])
 }
 
 func httpError(ctx context.Context, w http.ResponseWriter, statusCode int, err error) {
