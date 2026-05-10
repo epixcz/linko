@@ -14,9 +14,11 @@ func Test_requestLogger(t *testing.T) {
 	logBuffer, loggedHandler := testRequestLogger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
 	rr := httptest.NewRecorder()
-	loggedHandler.ServeHTTP(rr, httptest.NewRequest("GET", "http://lin.ko/api/stats", nil))
+	req := httptest.NewRequest("GET", "http://lin.ko/api/stats", nil)
+	req.Header.Set("X-Request-ID", "test-request-id")
+	loggedHandler.ServeHTTP(rr, req)
 
-	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0` + "\n"
+	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 request_id=test-request-id duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0` + "\n"
 	const expectedStatusCode = http.StatusOK
 
 	if logBuffer.String() != expectedLogString {
@@ -34,9 +36,11 @@ func Test_requestLoggerIncludesAuthenticatedUser(t *testing.T) {
 	}))
 
 	rr := httptest.NewRecorder()
-	loggedHandler.ServeHTTP(rr, httptest.NewRequest("GET", "http://lin.ko/api/stats", nil))
+	req := httptest.NewRequest("GET", "http://lin.ko/api/stats", nil)
+	req.Header.Set("X-Request-ID", "test-request-id")
+	loggedHandler.ServeHTTP(rr, req)
 
-	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0 user=frodo` + "\n"
+	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 request_id=test-request-id duration=1s request_body_bytes=0 response_status=200 response_body_bytes=0 user=frodo` + "\n"
 	if logBuffer.String() != expectedLogString {
 		t.Errorf("expected log string %q, got %q", expectedLogString, logBuffer.String())
 	}
@@ -48,11 +52,27 @@ func Test_requestLoggerIncludesResponseError(t *testing.T) {
 	}))
 
 	rr := httptest.NewRecorder()
-	loggedHandler.ServeHTTP(rr, httptest.NewRequest("GET", "http://lin.ko/api/stats", nil))
+	req := httptest.NewRequest("GET", "http://lin.ko/api/stats", nil)
+	req.Header.Set("X-Request-ID", "test-request-id")
+	loggedHandler.ServeHTTP(rr, req)
 
-	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 duration=1s request_body_bytes=0 response_status=418 response_body_bytes=19 error.message="teapot unavailable"` + "\n"
+	const expectedLogString = `time=2023-10-01T12:34:57.000Z level=INFO msg="Served request" method=GET path=/api/stats client_ip=192.0.2.1:1234 request_id=test-request-id duration=1s request_body_bytes=0 response_status=418 response_body_bytes=19 error.message="teapot unavailable"` + "\n"
 	if logBuffer.String() != expectedLogString {
 		t.Errorf("expected log string %q, got %q", expectedLogString, logBuffer.String())
+	}
+}
+
+func Test_requestIDMiddleware(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	handler := requestIDMiddleware(next)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "http://lin.ko/api/stats", nil)
+	req.Header.Set("X-Request-ID", "client-request-id")
+	handler.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("X-Request-ID"); got != "client-request-id" {
+		t.Errorf("expected response request id %q, got %q", "client-request-id", got)
 	}
 }
 
@@ -69,5 +89,5 @@ func testRequestLogger(next http.Handler) (*bytes.Buffer, http.Handler) {
 			return replaceAttr(groups, a)
 		},
 	}))
-	return logBuffer, requestLogger(logger)(next)
+	return logBuffer, requestIDMiddleware(requestLogger(logger)(next))
 }
