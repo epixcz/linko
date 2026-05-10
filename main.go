@@ -15,6 +15,8 @@ import (
 	"boot.dev/linko/internal/build"
 	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-isatty"
 	pkgerr "github.com/pkg/errors"
 )
 
@@ -94,11 +96,14 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 }
 
 func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
-	stderrOptions := &slog.HandlerOptions{
+	stderrFD := os.Stderr.Fd()
+	useColor := isatty.IsTerminal(stderrFD) || isatty.IsCygwinTerminal(stderrFD)
+	stderrOptions := &tint.Options{
 		Level:       slog.LevelDebug,
+		NoColor:     !useColor,
 		ReplaceAttr: replaceAttr,
 	}
-	stderrHandler := slog.NewTextHandler(os.Stderr, stderrOptions)
+	stderrHandler := tint.NewHandler(os.Stderr, stderrOptions)
 	if logFile == "" {
 		return slog.New(stderrHandler), func() error { return nil }, nil
 	}
