@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -18,6 +17,7 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	pkgerr "github.com/pkg/errors"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type closeFunc func() error
@@ -108,27 +108,22 @@ func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
 		return slog.New(stderrHandler), func() error { return nil }, nil
 	}
 
-	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return slog.New(stderrHandler), func() error { return nil }, err
-	}
-
-	bufferedFile := bufio.NewWriterSize(f, 8192)
-	closeLogger := func() error {
-		if err := bufferedFile.Flush(); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
+	fileLogger := &lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    1,
+		MaxAge:     28,
+		MaxBackups: 10,
+		LocalTime:  false,
+		Compress:   true,
 	}
 
 	fileOptions := &slog.HandlerOptions{
 		Level:       slog.LevelInfo,
 		ReplaceAttr: replaceAttr,
 	}
-	fileHandler := slog.NewJSONHandler(bufferedFile, fileOptions)
+	fileHandler := slog.NewJSONHandler(fileLogger, fileOptions)
 
-	return slog.New(slog.NewMultiHandler(stderrHandler, fileHandler)), closeLogger, nil
+	return slog.New(slog.NewMultiHandler(stderrHandler, fileHandler)), fileLogger.Close, nil
 }
 
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
