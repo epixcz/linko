@@ -10,9 +10,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"boot.dev/linko/internal/store"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -30,12 +33,20 @@ type LogContext struct {
 
 const LogContextKey contextKey = "log_context"
 
+var httpRequestsTotal = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "Total number of HTTP requests.",
+	},
+	[]string{"method", "path", "status"},
+)
+
 func newServer(store store.Store, port int, cancel context.CancelFunc, logger *slog.Logger) *server {
 	mux := http.NewServeMux()
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: requestIDMiddleware(requestLogger(logger)(mux)),
+		Handler: requestIDMiddleware(requestLogger(logger)(metricsMiddleware(mux))),
 	}
 
 	s := &server{
@@ -55,6 +66,21 @@ func newServer(store store.Store, port int, cancel context.CancelFunc, logger *s
 	mux.HandleFunc("POST /admin/shutdown", s.handlerShutdown)
 
 	return s
+}
+
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := &spyResponseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+		next.ServeHTTP(response, r)
+		httpRequestsTotal.WithLabelValues(
+			r.Method,
+			r.URL.Path,
+			strconv.Itoa(response.statusCode),
+		).Inc()
+	})
 }
 
 func requestIDMiddleware(next http.Handler) http.Handler {
