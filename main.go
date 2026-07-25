@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -43,6 +44,7 @@ type multiError interface {
 var (
 	sensitiveLogKeys = []string{"password", "key", "apikey", "secret", "pin", "creditcardno", "user"}
 	urlPattern       = regexp.MustCompile(`https?://[^\s"']+`)
+	tracer           trace.Tracer
 )
 
 func main() {
@@ -133,6 +135,7 @@ func initTracing(ctx context.Context) (func(context.Context) error, error) {
 	)
 
 	otel.SetTracerProvider(tp)
+	tracer = otel.Tracer("boot.dev/linko")
 	return tp.Shutdown, nil
 }
 

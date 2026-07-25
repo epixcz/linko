@@ -1,0 +1,45 @@
+File: linko
+Type: inuse_space
+Time: 2026-05-23 20:22:21 CEST
+Duration: 30.01s, Total samples = 4165.74kB 
+Showing nodes accounting for 3141.63kB, 75.42% of 4165.74kB total
+      flat  flat%   sum%        cum   cum%
+ 2613.49kB 62.74% 62.74%  2613.49kB 62.74%  internal/bytealg.MakeNoZero
+  528.17kB 12.68% 75.42%   528.17kB 12.68%  regexp.(*bitState).reset
+ -512.05kB 12.29% 63.12%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus.processMetric
+  512.03kB 12.29% 75.42%   512.03kB 12.29%  syscall.anyToSockaddr
+         0     0% 75.42%   528.17kB 12.68%  github.com/lmittmann/tint.(*handler).Handle
+         0     0% 75.42%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus.(*Registry).Gather
+         0     0% 75.42%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus.(*noTransactionGatherer).Gather
+         0     0% 75.42%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus/promhttp.HandlerForTransactional.func1
+         0     0% 75.42%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus/promhttp.InstrumentHandlerCounter.func1
+         0     0% 75.42%  -512.05kB 12.29%  github.com/prometheus/client_golang/prometheus/promhttp.InstrumentMetricHandler.InstrumentHandlerInFlight.func1
+         0     0% 75.42%   512.03kB 12.29%  internal/poll.(*FD).Accept
+         0     0% 75.42%   512.03kB 12.29%  internal/poll.accept
+         0     0% 75.42%   528.17kB 12.68%  log/slog.(*Logger).Info
+         0     0% 75.42%   528.17kB 12.68%  log/slog.(*Logger).log
+         0     0% 75.42%  2613.49kB 62.74%  main.(*server).handlerRedirect
+         0     0% 75.42%   512.03kB 12.29%  main.(*server).start
+         0     0% 75.42%  2101.44kB 50.45%  main.newServer.metricsMiddleware.func2
+         0     0% 75.42%  2629.60kB 63.12%  main.newServer.newServer.requestLogger.func1.func3
+         0     0% 75.42%  2629.60kB 63.12%  main.newServer.requestIDMiddleware.func4
+         0     0% 75.42%   528.17kB 12.68%  main.redactAttr
+         0     0% 75.42%   528.17kB 12.68%  main.redactURLPasswords
+         0     0% 75.42%   528.17kB 12.68%  main.replaceAttr
+         0     0% 75.42%   512.03kB 12.29%  main.run.func2
+         0     0% 75.42%   512.03kB 12.29%  net.(*TCPListener).Accept
+         0     0% 75.42%   512.03kB 12.29%  net.(*TCPListener).accept
+         0     0% 75.42%   512.03kB 12.29%  net.(*netFD).accept
+         0     0% 75.42%  2101.44kB 50.45%  net/http.(*ServeMux).ServeHTTP
+         0     0% 75.42%   512.03kB 12.29%  net/http.(*Server).Serve
+         0     0% 75.42%  2629.60kB 63.12%  net/http.(*conn).serve
+         0     0% 75.42%  2629.60kB 63.12%  net/http.HandlerFunc.ServeHTTP
+         0     0% 75.42%  2629.60kB 63.12%  net/http.serverHandler.ServeHTTP
+         0     0% 75.42%   528.17kB 12.68%  regexp.(*Regexp).ReplaceAllStringFunc
+         0     0% 75.42%   528.17kB 12.68%  regexp.(*Regexp).backtrack
+         0     0% 75.42%   528.17kB 12.68%  regexp.(*Regexp).doExecute
+         0     0% 75.42%   528.17kB 12.68%  regexp.(*Regexp).replaceAll
+         0     0% 75.42%  2613.49kB 62.74%  strings.(*Builder).Grow
+         0     0% 75.42%  2613.49kB 62.74%  strings.(*Builder).grow
+         0     0% 75.42%  2613.49kB 62.74%  strings.Repeat
+         0     0% 75.42%   512.03kB 12.29%  syscall.Accept

@@ -232,6 +232,9 @@ func (s *server) shutdown(ctx context.Context) error {
 }
 
 func (s *server) handlerShutdown(w http.ResponseWriter, r *http.Request) {
+	_, span := tracer.Start(r.Context(), "handler.shutdown")
+	defer span.End()
+
 	if os.Getenv("ENV") == "production" {
 		http.NotFound(w, r)
 		return
